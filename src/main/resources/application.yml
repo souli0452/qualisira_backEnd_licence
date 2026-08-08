@@ -94,11 +94,12 @@ spring:
             # Le back-office est servi par cette application : Keycloak renvoie ici après
             # connexion, et la session prend le relais.
             #
-            # « baseUrl » est déduit de l'en-tête « Host ». En développement, le proxy d'Angular
-            # relaie /oauth2, /login et /logout sans « changeOrigin » : l'adresse reste donc celle
-            # du front (4300), qui est bien celle déclarée dans le client Keycloak. Tout le flot
-            # tient sur une seule origine, et la session revient sur l'écran plutôt que sur le port
-            # du serveur.
+            # « baseUrl » est déduit de l'en-tête « Host » reçu. Tout relais placé devant doit
+            # donc CONSERVER cet en-tête : le remplacer par celui de la cible ferait réclamer une
+            # adresse interne, que le royaume refuserait. En développement, proxy.conf.json pose
+            # « changeOrigin: false » pour cette raison ; en production, nginx doit poser
+            # « proxy_set_header Host $host ». L'oubli ne se voit pas en mode local — seulement le
+            # jour du passage à Keycloak.
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
         provider:
           keycloak:
