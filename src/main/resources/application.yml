@@ -130,9 +130,14 @@ licences:
   # actif porte ce rôle — renommer ou remplacer ce compte est donc sans danger.
   admin:
     utilisateur: ${LICENCES_ADMIN_UTILISATEUR:admin}
-    # Vide : un mot de passe est tiré au hasard et annoncé une fois au démarrage. À définir pour
-    # choisir le sien. Il est demandé à la première connexion de le changer.
-    mot-de-passe: ${LICENCES_ADMIN_MDP:00000000}
+    # Vide, et ce fichier est versionné : un mot de passe écrit ici vaudrait pour toute
+    # installation clonant ce dépôt, et le premier compte de l'outil qui signe les licences
+    # serait connu de tous. Un mot de passe est donc tiré au hasard au premier démarrage et
+    # annoncé une seule fois dans le journal — à noter à ce moment-là.
+    #
+    # LICENCES_ADMIN_MDP permet d'en choisir un. Dans les deux cas, l'écran en réclame le
+    # changement à la première connexion.
+    mot-de-passe: ${LICENCES_ADMIN_MDP:}
     nom: ${LICENCES_ADMIN_NOM:Super administrateur}
     email: ${LICENCES_ADMIN_EMAIL:qualilicence@gmail.com}
 
