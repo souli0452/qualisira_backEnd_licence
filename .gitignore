@@ -9,3 +9,6 @@ data/
 .idea/
 *.iml
 .DS_Store
+
+# Le .env porte les secrets réels ; seul .env.example est versionné.
+.env
