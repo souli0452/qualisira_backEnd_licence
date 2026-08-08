@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+      Projet délibérément autonome, hors du parent des microservices : cet outil ne part jamais
+      chez un client. Il détient la clé privée qui signe les licences — la mêler au produit livré
+      reviendrait à la livrer avec.
+    -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.5</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.qualiapproche</groupId>
+    <artifactId>qualisira-licences</artifactId>
+    <version>1.0.0</version>
+    <name>QualiSira — Licences</name>
+    <description>Gestion des partenaires, des abonnements et émission des licences signées</description>
+
+    <properties>
+        <java.version>21</java.version>
+        <!--
+          Plus récent que celui des microservices (1.18.34) : le JDK installé sur les postes est un
+          25, que les versions antérieures de Lombok ne savent pas instrumenter — la compilation
+          échoue alors sur un « TypeTag :: UNKNOWN » qui ne dit pas son nom.
+        -->
+        <lombok.version>1.18.46</lombok.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <!--
+          Connexion par Keycloak, en flot « code d'autorisation » : le back-office est servi par
+          cette application, c'est donc elle qui mène la session. Un jeton porté par le navigateur
+          aurait obligé à réécrire l'authentification en JavaScript, pour le même résultat.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <!-- Remise de la licence au partenaire, en pièce jointe. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
+        <!-- PostgreSQL, comme les autres services QualiSira. -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!--
+          Le schéma est décrit par des migrations versionnées plutôt que déduit des entités.
+          « ddl-auto: update » corrigeait la base en silence à chaque démarrage : une colonne
+          renommée en laissait deux, un type élargi ne revenait jamais en arrière, et rien ne disait
+          qui avait changé quoi ni quand. Une licence émise doit rester lisible des années plus
+          tard — le schéma qui la porte mérite le même soin que le code.
+        -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+              Le chemin des processeurs est déclaré explicitement : depuis Java 23, un processeur
+              simplement présent sur le classpath n'est plus exécuté d'office. Sans cela, Lombok
+              reste silencieux et la compilation échoue sur des accesseurs introuvables.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

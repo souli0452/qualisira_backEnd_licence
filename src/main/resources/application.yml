@@ -1,0 +1,158 @@
+server:
+  port: ${LICENCES_PORT:8099}
+  servlet:
+    session:
+      # La session vit dans un cookie que le script de la page ne peut pas lire : un script tiers
+      # injecté ne pourrait pas l'exfiltrer. « Lax » l'empêche d'accompagner une requête déclenchée
+      # depuis un autre site. « secure » exige HTTPS — à activer dès que le back-office y est publié.
+      cookie:
+        name: LICENCES_SESSION
+        http-only: true
+        same-site: lax
+        secure: ${LICENCES_COOKIE_SECURE:false}
+      timeout: ${LICENCES_SESSION_DUREE:8h}
+
+spring:
+  application:
+    name: qualisira-licences
+
+  # PostgreSQL, comme les autres services QualiSira : même serveur, même sauvegarde, mêmes
+  # habitudes d'exploitation. Ce que contient cette base — partenaires, conditions commerciales,
+  # licences émises — mérite les mêmes égards que la production.
+  datasource:
+    url: ${LICENCES_DB_URL:jdbc:postgresql://localhost:5432/qualisira_licencesdb}
+    username: ${LICENCES_DB_USER:postgres}
+    password: ${LICENCES_DB_MDP:root}
+
+  # Le schéma est décrit par des migrations versionnées, dans db/migration.
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # Une base déjà en service n'est pas vide : Flyway la marque « v1 » au lieu de rejouer le
+    # schéma initial, qui échouerait sur des tables existantes. Une base vide, elle, reçoit V1
+    # puis la suite. Les deux convergent ensuite.
+    baseline-on-migrate: true
+    baseline-version: 1
+    # Sans apostrophe : Flyway interpole cette description dans le SQL qui inscrit la ligne de
+    # référence, et une apostrophe y casse la migration au premier démarrage.
+    baseline-description: Schema initial releve avant la mise en place de Flyway
+    # Un script déjà appliqué puis modifié fait échouer le démarrage, plutôt que d'appliquer un
+    # schéma qui ne correspond plus à l'historique.
+    validate-on-migrate: true
+
+  jpa:
+    hibernate:
+      # Le schéma vient des migrations, plus des entités. « update » le corrigeait en silence à
+      # chaque démarrage : une colonne renommée en laissait deux, un type élargi ne revenait
+      # jamais en arrière, et rien ne disait qui avait changé quoi. « validate » signale au
+      # démarrage tout écart entre les entités et le schéma migré.
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Remise des licences par courriel. Mêmes réglages que les services QualiSira : le serveur
+  # d'envoi est le même, seul l'objet du message change.
+  mail:
+    host: ${MAIL_HOST:mail.qualisira.com}
+    port: ${MAIL_PORT:465}
+    username: ${MAIL_USERNAME:noreply@qualisira.com}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
+
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            # Variables préfixées « KC_LICENCES_ », et non les « KC_ » habituelles : les autres
+            # services QualiSira partagent KC_ISSUER_URI, KC_CLIENT_ID et KC_CLIENT_SECRET pour le
+            # royaume « quali » et le client « quali-sira ». Cet outil ayant son propre royaume,
+            # reprendre ces noms le ferait démarrer avec le secret d'un autre client — et échouer
+            # à l'échange du code, longtemps après le démarrage, sur un « invalid_client » que
+            # rien ne relie à la cause.
+            client-id: ${KC_LICENCES_CLIENT:qualisira-licences}
+            # Sans valeur par défaut, et ce fichier est versionné : un secret écrit ici serait un
+            # secret publié, quel que soit le dépôt. Ce secret vaut la clé de signature des
+            # licences, puisqu'il ouvre l'outil qui la détient.
+            #
+            # À poser dans l'environnement : KC_LICENCES_SECRET. En mode « local » il ne sert pas,
+            # et son absence est sans conséquence ; en mode « keycloak » elle fait échouer
+            # l'échange du code, avec un « invalid_client » explicite.
+            client-secret: ${KC_LICENCES_SECRET:}
+            authorization-grant-type: authorization_code
+            scope: openid, profile, email
+            # Le back-office est servi par cette application : Keycloak renvoie ici après
+            # connexion, et la session prend le relais.
+            #
+            # « baseUrl » est déduit de l'en-tête « Host ». En développement, le proxy d'Angular
+            # relaie /oauth2, /login et /logout sans « changeOrigin » : l'adresse reste donc celle
+            # du front (4300), qui est bien celle déclarée dans le client Keycloak. Tout le flot
+            # tient sur une seule origine, et la session revient sur l'écran plutôt que sur le port
+            # du serveur.
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          keycloak:
+            # Royaume dédié : les comptes qui émettent des licences ne se mêlent pas à ceux des
+            # autres services QualiSira.
+            issuer-uri: ${KC_LICENCES_ISSUER:http://localhost:8080/realms/qualisira-licences}
+            # Le nom lisible plutôt que « sub » : c'est lui qui est inscrit dans « émise par »
+            # sur chaque licence.
+            user-name-attribute: preferred_username
+
+licences:
+  auth:
+    # « keycloak » en fonctionnement normal ; « local » pour la mise au point ou un poste hors
+    # réseau — l'émission d'une licence ne doit pas dépendre de la disponibilité de Keycloak.
+    mode: ${LICENCES_AUTH:local}
+    # Rôle Keycloak exigé pour entrer. Cet outil signe les licences : y accéder, c'est pouvoir
+    # s'en émettre une. À créer dans le royaume et à n'attribuer qu'à l'équipe éditeur.
+    #
+    # Ce rôle n'ouvre que la porte : il n'accorde aucune permission. Ce qu'ouvre chaque rôle est
+    # décrit ici, dans la table « roles » — un rôle du royaume portant le même code que l'un d'eux
+    # en reçoit les permissions. Un compte du royaume porte donc DEUX rôles : celui-ci, et son
+    # rôle métier (SUPER_ADMIN, EDITEUR, LECTEUR). Avec le seul rôle d'entrée, l'application
+    # s'ouvre mais chaque action y est refusée.
+    role-requis: ${LICENCES_ROLE:LICENCES_EDITEUR}
+
+  # Le super administrateur créé au premier démarrage : c'est lui qui ouvre les comptes des
+  # autres et leur attribue des rôles. Il porte le rôle SUPER_ADMIN, qui reçoit d'office toutes
+  # les permissions du catalogue. Rien n'est recréé aux démarrages suivants dès qu'un compte
+  # actif porte ce rôle — renommer ou remplacer ce compte est donc sans danger.
+  admin:
+    utilisateur: ${LICENCES_ADMIN_UTILISATEUR:admin}
+    # Vide : un mot de passe est tiré au hasard et annoncé une fois au démarrage. À définir pour
+    # choisir le sien. Il est demandé à la première connexion de le changer.
+    mot-de-passe: ${LICENCES_ADMIN_MDP:00000000}
+    nom: ${LICENCES_ADMIN_NOM:Super administrateur}
+    email: ${LICENCES_ADMIN_EMAIL:qualilicence@gmail.com}
+
+  cles:
+    # Engendré au premier démarrage. À SAUVEGARDER et à ne jamais versionner : c'est la clé qui
+    # signe toutes les licences.
+    fichier: ${LICENCES_CLES:./data/cles-editeur.properties}
+
+  essai:
+    jours: ${LICENCES_ESSAI_JOURS:7}
+
+  envoi:
+    # Expéditeur affiché, s'il diffère du compte SMTP — « QualiSira <licences@qualisira.com> ».
+    expediteur: ${LICENCES_EXPEDITEUR:noreply@qualisira.com}
+
+  cors:
+    # Origines du back-office Angular. Énumérées, jamais « * » : la session accompagne chaque
+    # appel. En développement, le proxy d'Angular rend cette liste inutile.
+    origines: ${LICENCES_CORS:http://localhost:4300}
+
+logging:
+  level:
+    com.qualiapproche.licences: INFO

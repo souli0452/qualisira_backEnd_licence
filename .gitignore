@@ -1,0 +1,11 @@
+target/
+
+# LA CLÉ PRIVÉE DE SIGNATURE VIT ICI.
+# Rien de ce dossier ne doit être versionné : elle permet d'émettre des licences pour n'importe
+# quel partenaire, sans limite. Sauvegardez-la par ailleurs — sa perte rend invérifiables toutes
+# les licences déjà remises.
+data/
+
+.idea/
+*.iml
+.DS_Store
