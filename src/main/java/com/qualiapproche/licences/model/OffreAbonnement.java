@@ -121,4 +121,19 @@ public class OffreAbonnement {
     @Builder.Default
     @Column(nullable = false)
     private boolean actif = true;
+
+    /**
+     * Cette offre est un essai.
+     *
+     * <p>Ce que le drapeau change : la licence émise est de type {@code ESSAI}, elle n'est jamais
+     * facturée quel que soit le montant porté ici, et il n'en est accordé <b>qu'une par
+     * partenaire</b> — sans quoi il suffirait d'en redemander une à chaque échéance, et l'essai
+     * remplacerait l'abonnement.</p>
+     *
+     * <p>Un drapeau plutôt qu'un code réservé : « ESSAI » se renomme, et plusieurs offres d'essai
+     * peuvent coexister — une courte, une plus longue pour un grand compte.</p>
+     */
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean essai = false;
 }

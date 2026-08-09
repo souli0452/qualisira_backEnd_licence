@@ -49,7 +49,6 @@ le **super administrateur** — le compte par lequel tous les autres seront ouve
 | `LICENCES_CORS` | `http://localhost:4300` | origines du back-office |
 | `LICENCES_COOKIE_SECURE` | `false` | à passer à `true` derrière HTTPS |
 | `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` | *(qualisira.com)* | remise par courriel |
-| `LICENCES_ESSAI_JOURS` | `7` | durée d'un essai |
 
 Sans `LICENCES_ADMIN_MDP`, un mot de passe est tiré au hasard et annoncé **une fois** au démarrage,
 à la création du super administrateur. Notez-le : le compte n'est pas recréé aux démarrages
@@ -125,8 +124,8 @@ part se ferme sans toucher au reste.
 | À déclarer | Valeur |
 | --- | --- |
 | Client | `qualisira-licences`, confidentiel, flot standard |
-| URI de redirection | `http://localhost:4300/*` — celle du **front**, pas du serveur (voir plus bas) |
-| Déconnexion | `post.logout.redirect.uris` = `http://localhost:4300/*` |
+| URI de redirection | `http://localhost:8099/*` — celle de **ce service**, qui sert aussi le back-office |
+| Déconnexion | `post.logout.redirect.uris` = `http://localhost:8099/*` |
 | Rôles du royaume | `LICENCES_EDITEUR` (entrée) **et** `SUPER_ADMIN` / `EDITEUR` / `LECTEUR` (droits) |
 
 Chaque compte porte **deux** rôles : celui d'entrée, et son rôle métier. Le rôle d'entrée n'accorde
@@ -138,10 +137,7 @@ défaut que dans le jeton d'accès, alors que Spring lit les revendications du j
 sans cela l'authentification réussit, l'utilisateur n'a aucun rôle, et tout le monde bute sur le
 rôle d'entrée sans qu'aucun message n'en dise la raison.
 
-L'adresse de retour est déduite de l'en-tête `Host`. En développement, le proxy d'Angular relaie
-`/oauth2`, `/login` et `/logout` **sans `changeOrigin`** : le flot reste donc sur le port du front
-(4300), qui est l'adresse déclarée dans le client. Activer `changeOrigin` sur ces chemins ferait
-réclamer par Spring une adresse en `:8099` que le royaume refuserait.
+L'adresse de retour est déduite de l'en-tête `Host` reçu par ce service. Comme il sert lui-même le back-office, il n'y a qu'une origine et la question ne se pose pas. Si un répartiteur ou un terminateur TLS est placé devant, il doit **conserver cet en-tête** (`proxy_set_header Host $host;`) : le remplacer ferait réclamer une adresse interne, que le royaume refuserait.
 
 ## API
 

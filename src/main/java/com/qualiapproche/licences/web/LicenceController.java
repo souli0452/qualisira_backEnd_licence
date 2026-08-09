@@ -63,17 +63,6 @@ public class LicenceController {
         return LicenceVue.de(service.emettre(demande, auteur != null ? auteur.getName() : "inconnu"));
     }
 
-    /** Essai gratuit : un seul par partenaire, tous les modules, durée courte. */
-    @PostMapping("/essai")
-    @PreAuthorize("hasAuthority('LICENCE_EMETTRE')")
-    public LicenceVue essai(@RequestBody Map<String, Object> demande, Principal auteur) {
-        UUID partenaireId = UUID.fromString(String.valueOf(demande.get("partenaireId")));
-        Integer jours = demande.get("jours") != null
-                ? Integer.valueOf(String.valueOf(demande.get("jours"))) : null;
-        return LicenceVue.de(service.emettreEssai(partenaireId, jours,
-                auteur != null ? auteur.getName() : "inconnu"));
-    }
-
     @PostMapping("/{id}/revoquer")
     @PreAuthorize("hasAuthority('LICENCE_REVOQUER')")
     public LicenceVue revoquer(@PathVariable UUID id, @RequestBody(required = false) Map<String, String> corps) {

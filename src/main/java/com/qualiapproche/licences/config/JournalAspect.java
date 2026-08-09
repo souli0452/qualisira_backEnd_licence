@@ -57,7 +57,6 @@ public class JournalAspect {
      */
     private static final Map<String, String> INTITULES = Map.ofEntries(
             Map.entry("LicenceController.emettre", "Émettre une licence"),
-            Map.entry("LicenceController.emettreEssai", "Émettre une licence d'essai"),
             Map.entry("LicenceController.revoquer", "Révoquer une licence"),
             Map.entry("LicenceController.envoyer", "Envoyer une licence par courriel"),
             Map.entry("LicenceController.verifier", "Vérifier une licence"),

@@ -3,6 +3,7 @@ package com.qualiapproche.licences.web;
 import com.qualiapproche.licences.licence.LicenceIllisibleException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -66,6 +67,20 @@ public class GestionnaireDErreurs {
     public ResponseEntity<Map<String, Object>> introuvable(NoResourceFoundException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("message", "Ressource introuvable : " + e.getResourcePath()));
+    }
+
+    /**
+     * Une méthode HTTP qui ne s'applique pas à cette adresse est un 405, pas une panne.
+     *
+     * <p>C'est ce que reçoit un client resté sur une version antérieure de l'API — un chemin
+     * retiré dont le sien se sert encore. Le lui dire en 500 l'enverrait chercher une défaillance
+     * du serveur, là où il suffit de mettre à jour l'appel.</p>
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> methodeRefusee(HttpRequestMethodNotSupportedException e) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(Map.of("message", "La méthode " + e.getMethod()
+                        + " ne s'applique pas à cette adresse."));
     }
 
     @ExceptionHandler(Exception.class)

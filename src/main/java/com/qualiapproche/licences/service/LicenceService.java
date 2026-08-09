@@ -50,9 +50,6 @@ public class LicenceService {
     private final OffreAbonnementRepository offreRepository;
     private final TrousseauDeSignature trousseau;
 
-    @Value("${licences.essai.jours:7}")
-    private int joursDEssai;
-
     @Transactional(readOnly = true)
     public List<Licence> lister() {
         return licenceRepository.findAllByOrderByEmiseLeDesc();
@@ -122,6 +119,9 @@ public class LicenceService {
             if (!offre.isActif()) {
                 throw new ErreurMetier("L'offre « " + offre.getLibelle() + " » n'est plus proposée.");
             }
+            if (offre.isEssai()) {
+                refuserUnSecondEssai(partenaire);
+            }
         }
 
         Set<ModuleQualiSira> modules = premierNonVide(demande.modules(),
@@ -145,33 +145,30 @@ public class LicenceService {
             throw new ErreurMetier("Le nombre d'utilisateurs ne peut pas être négatif. 0 vaut « sans limite ».");
         }
 
-        return enregistrer(partenaire, offre, TypeLicence.COMMERCIALE, debut, fin, utilisateurs,
-                modules, auteur);
+        // Le type se déduit de l'offre : c'est elle qui sait si l'on offre une évaluation ou si
+        // l'on vend. Le demander en plus laisserait poser « commerciale » sur une offre d'essai,
+        // et la licence serait facturée dans le tableau de bord sans que rien ne le signale.
+        TypeLicence type = offre != null && offre.isEssai()
+                ? TypeLicence.ESSAI
+                : TypeLicence.COMMERCIALE;
+
+        return enregistrer(partenaire, offre, type, debut, fin, utilisateurs, modules, auteur);
     }
 
     /**
-     * Émet un essai gratuit : durée courte, tous les modules.
+     * Un seul essai par partenaire.
      *
-     * <p>Un seul par partenaire. Sans cette limite, il suffirait d'en redemander un à chaque
-     * échéance — et l'essai remplacerait l'abonnement.</p>
+     * <p>Sans cette limite, il suffirait d'en redemander un à chaque échéance — et l'essai
+     * remplacerait l'abonnement.</p>
      */
-    @Transactional
-    public Licence emettreEssai(UUID partenaireId, Integer jours, String auteur) {
-        Partenaire partenaire = partenaire(partenaireId);
-        if (licenceRepository.countByPartenaireIdAndType(partenaireId, TypeLicence.ESSAI) > 0) {
+    private void refuserUnSecondEssai(Partenaire partenaire) {
+        if (licenceRepository.countByPartenaireIdAndType(partenaire.getId(), TypeLicence.ESSAI) > 0) {
             throw new ErreurMetier(
                     "Un essai a déjà été accordé à « " + partenaire.getRaisonSociale() + " ». "
                             + "Émettez une licence commerciale, ou une licence sur mesure si vous "
                             + "voulez prolonger l'évaluation.",
                     HttpStatus.CONFLICT);
         }
-
-        LocalDate debut = LocalDate.now();
-        int duree = jours != null && jours > 0 ? jours : joursDEssai;
-        Set<ModuleQualiSira> tous = new LinkedHashSet<>(Arrays.asList(ModuleQualiSira.values()));
-
-        return enregistrer(partenaire, null, TypeLicence.ESSAI, debut, debut.plusDays(duree),
-                0, tous, auteur);
     }
 
     @Transactional

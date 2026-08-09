@@ -153,8 +153,6 @@ licences:
     # signe toutes les licences.
     fichier: ${LICENCES_CLES:./data/cles-editeur.properties}
 
-  essai:
-    jours: ${LICENCES_ESSAI_JOURS:7}
 
   envoi:
     # Expéditeur affiché, s'il diffère du compte SMTP — « QualiSira <licences@qualisira.com> ».

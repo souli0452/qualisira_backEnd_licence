@@ -74,6 +74,7 @@ public class CatalogueInitial implements CommandLineRunner {
                 .uniteDuree(UniteDeDuree.JOURS)
                 .utilisateursMax(5)
                 .modules(modules(ModuleQualiSira.NON_CONFORMITE, ModuleQualiSira.DOCUMENTAIRE))
+                .essai(true)
                 .actif(true)
                 .build());
     }
