@@ -93,10 +93,15 @@ public class SecuriteKeycloakConfig {
                     // Keycloak plutôt qu'un formulaire.
                     requetes.requestMatchers("/api/session/mode").permitAll();
                     if (roleRequis == null || roleRequis.isBlank()) {
-                        requetes.anyRequest().authenticated();
+                        requetes.requestMatchers("/api/**").authenticated();
                     } else {
-                        requetes.anyRequest().hasAuthority("ROLE_" + roleRequis);
+                        requetes.requestMatchers("/api/**").hasAuthority("ROLE_" + roleRequis);
                     }
+                    // Le back-office lui-même est servi sans session : ce sont des fichiers, sans
+                    // donnée. Le fermer enverrait l'utilisateur vers Keycloak avant même que
+                    // l'écran ait pu s'afficher, et son bouton de connexion ne servirait jamais.
+                    // Ce qui protège est derrière, sur chaque appel d'API.
+                    requetes.anyRequest().permitAll();
                 })
                 .oauth2Login(connexion -> connexion
                         .userInfoEndpoint(infos -> infos.oidcUserService(serviceUtilisateur())))

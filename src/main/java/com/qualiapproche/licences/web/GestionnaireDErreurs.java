@@ -3,6 +3,7 @@ package com.qualiapproche.licences.web;
 import com.qualiapproche.licences.licence.LicenceIllisibleException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -52,6 +53,19 @@ public class GestionnaireDErreurs {
                 .map(erreur -> erreur.getField() + " : " + erreur.getDefaultMessage())
                 .collect(Collectors.joining(" ; "));
         return ResponseEntity.badRequest().body(Map.of("message", "Saisie à corriger — " + detail));
+    }
+
+    /**
+     * Un fichier demandé qui n'existe pas est un 404, jamais une panne du serveur.
+     *
+     * <p>Sans cette exception, toute ressource absente — une image, une police — repartait en 500
+     * avec une trace dans le journal : on cherchait une défaillance là où il n'y avait qu'un
+     * fichier manquant, et les vraies pannes se noyaient dans ce bruit.</p>
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> introuvable(NoResourceFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", "Ressource introuvable : " + e.getResourcePath()));
     }
 
     @ExceptionHandler(Exception.class)

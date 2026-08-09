@@ -76,7 +76,13 @@ public class SecuriteConfig {
                         // « mode » avec « connexion » : l'écran demande d'abord comment on se
                         // connecte ici, avant de présenter un formulaire ou un bouton Keycloak.
                         .requestMatchers("/api/session/connexion", "/api/session/mode").permitAll()
-                        .anyRequest().authenticated())
+                        .requestMatchers("/api/**").authenticated()
+                        // Le back-office lui-même est servi sans session : c'est un ensemble de
+                        // fichiers, sans donnée. Exiger une session pour le charger renverrait un
+                        // 401 sur index.html, et l'écran de connexion ne s'afficherait jamais —
+                        // on ne peut pas demander d'être connecté pour atteindre de quoi se
+                        // connecter. Ce qui protège est derrière, sur chaque appel d'API.
+                        .anyRequest().permitAll())
                 // 401 nu : le navigateur ne doit pas ouvrir sa fenêtre d'authentification, c'est
                 // l'écran de connexion du back-office qui prend la main.
                 .exceptionHandling(erreurs -> erreurs
