@@ -249,7 +249,10 @@ public class LicenceService {
             return debut.plusMonths(demande.dureeMois());
         }
         if (offre != null) {
-            return debut.plusMonths(offre.getDureeMois());
+            // L'offre porte désormais son unité : c'est elle qui sait si « 7 » veut dire sept
+            // jours ou sept mois. Un essai vendu au catalogue n'a plus à voir sa durée ressaisie
+            // à chaque émission — donc oubliée.
+            return offre.getUniteDuree().ajouterA(debut, offre.getDuree());
         }
         throw new ErreurMetier("Aucune durée : choisissez une offre, ou indiquez une durée.");
     }

@@ -2,6 +2,7 @@ package com.qualiapproche.licences.config;
 
 import com.qualiapproche.licences.model.ModuleQualiSira;
 import com.qualiapproche.licences.model.OffreAbonnement;
+import com.qualiapproche.licences.model.UniteDeDuree;
 import com.qualiapproche.licences.repository.OffreAbonnementRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +32,8 @@ public class CatalogueInitial implements CommandLineRunner {
                 .code("ESSENTIEL")
                 .libelle("Essentiel")
                 .description("Non-conformités et gestion documentaire, pour démarrer la démarche qualité.")
-                .dureeMois(12)
+                .duree(12)
+                .uniteDuree(UniteDeDuree.MOIS)
                 .utilisateursMax(25)
                 .modules(modules(ModuleQualiSira.NON_CONFORMITE, ModuleQualiSira.DOCUMENTAIRE))
                 .actif(true)
@@ -41,7 +43,8 @@ public class CatalogueInitial implements CommandLineRunner {
                 .code("AVANCE")
                 .libelle("Avancé")
                 .description("Ajoute les réclamations, les risques et les audits au socle Essentiel.")
-                .dureeMois(12)
+                .duree(12)
+                .uniteDuree(UniteDeDuree.MOIS)
                 .utilisateursMax(100)
                 .modules(modules(ModuleQualiSira.NON_CONFORMITE, ModuleQualiSira.DOCUMENTAIRE,
                         ModuleQualiSira.RECLAMATION, ModuleQualiSira.RISQUE, ModuleQualiSira.AUDIT))
@@ -52,9 +55,25 @@ public class CatalogueInitial implements CommandLineRunner {
                 .code("INTEGRAL")
                 .libelle("Intégral")
                 .description("Tous les modules, sans limite d'utilisateurs.")
-                .dureeMois(12)
+                .duree(12)
+                .uniteDuree(UniteDeDuree.MOIS)
                 .utilisateursMax(0)
                 .modules(modules(ModuleQualiSira.values()))
+                .actif(true)
+                .build());
+
+        // L'essai devient une offre du catalogue, désormais qu'une durée s'exprime en jours.
+        // Il était jusqu'ici une durée codée en dur, ressaisie à chaque émission : l'allonger
+        // pour un prospect demandait de s'en souvenir, et personne ne savait ce qui avait été
+        // accordé au précédent.
+        creerSiAbsente(OffreAbonnement.builder()
+                .code("ESSAI")
+                .libelle("Essai gratuit")
+                .description("Sept jours pour découvrir les modules d'entrée, sans engagement.")
+                .duree(7)
+                .uniteDuree(UniteDeDuree.JOURS)
+                .utilisateursMax(5)
+                .modules(modules(ModuleQualiSira.NON_CONFORMITE, ModuleQualiSira.DOCUMENTAIRE))
                 .actif(true)
                 .build());
     }

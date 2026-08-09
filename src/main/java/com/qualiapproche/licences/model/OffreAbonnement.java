@@ -61,10 +61,21 @@ public class OffreAbonnement {
     @Column(length = 500)
     private String description;
 
-    /** Durée couverte, en mois. La date de fin s'en déduit à l'émission. */
+    /**
+     * Durée couverte. La date de fin s'en déduit à l'émission.
+     *
+     * <p>Accompagnée de son {@link #uniteDuree} : un essai se compte en jours, un abonnement en
+     * mois, et le second n'est pas le premier multiplié par trente — un an souscrit le 29 février
+     * se termine le 28 février suivant.</p>
+     */
     @Min(1)
     @Column(nullable = false)
-    private int dureeMois;
+    private int duree;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "unite_duree", nullable = false, length = 10)
+    private UniteDeDuree uniteDuree = UniteDeDuree.MOIS;
 
     /**
      * Plafond d'utilisateurs actifs ; {@code 0} vaut « sans limite ».

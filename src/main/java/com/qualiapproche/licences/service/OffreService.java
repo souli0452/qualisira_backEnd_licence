@@ -60,7 +60,8 @@ public class OffreService {
         verifier(valeurs);
         offre.setLibelle(valeurs.getLibelle());
         offre.setDescription(valeurs.getDescription());
-        offre.setDureeMois(valeurs.getDureeMois());
+        offre.setDuree(valeurs.getDuree());
+        offre.setUniteDuree(valeurs.getUniteDuree());
         offre.setUtilisateursMax(valeurs.getUtilisateursMax());
         offre.setModules(new LinkedHashSet<>(valeurs.getModules()));
         offre.setMontant(valeurs.getMontant());
@@ -76,8 +77,11 @@ public class OffreService {
         if (offre.getLibelle() == null || offre.getLibelle().isBlank()) {
             throw new ErreurMetier("Le libellé de l'offre est obligatoire.");
         }
-        if (offre.getDureeMois() < 1) {
-            throw new ErreurMetier("La durée doit valoir au moins un mois.");
+        if (offre.getDuree() < 1) {
+            throw new ErreurMetier("La durée doit valoir au moins une unité — un jour, un mois.");
+        }
+        if (offre.getUniteDuree() == null) {
+            throw new ErreurMetier("Précisez si la durée s'entend en jours ou en mois.");
         }
         if (offre.getModules() == null || offre.getModules().isEmpty()) {
             throw new ErreurMetier(
