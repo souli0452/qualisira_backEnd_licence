@@ -1,5 +1,23 @@
 server:
   port: ${LICENCES_PORT:8099}
+
+  # Derrière un relais qui termine le TLS, l'application ne voit que du HTTP en clair : elle
+  # fabriquerait alors une adresse de retour en « http:// » là où le navigateur et le royaume
+  # attendent « https:// ». Keycloak compare cette adresse caractère par caractère à celle
+  # déclarée dans le client, et refuse la connexion sur « Invalid parameter: redirect_uri ».
+  #
+  # Les en-têtes « X-Forwarded-* » posés par le relais sont donc lus, et c'est le schéma réel qui
+  # sert à bâtir l'adresse de retour.
+  #
+  # LE RELAIS DOIT LES POSER — sans quoi ce réglage n'a rien à lire :
+  #   proxy_set_header Host              $host;
+  #   proxy_set_header X-Forwarded-Proto $scheme;
+  #
+  # « framework » plutôt que « native » : le filtre de Spring vaut pour tout serveur embarqué, là
+  # où « native » délègue à la vanne de Tomcat, qu'il faut en outre restreindre aux adresses du
+  # relais. En développement, sans relais, ces en-têtes n'arrivent pas et rien ne change.
+  forward-headers-strategy: framework
+
   servlet:
     session:
       # La session vit dans un cookie que le script de la page ne peut pas lire : un script tiers
@@ -140,7 +158,40 @@ licences:
     # changement à la première connexion.
     mot-de-passe: ${LICENCES_ADMIN_MDP:}
     nom: ${LICENCES_ADMIN_NOM:Super administrateur}
-    email: ${LICENCES_ADMIN_EMAIL:qualilicence@gmail.com}
+    # Destinataire des accès du premier compte. Le mot de passe lui est envoyé plutôt qu'affiché
+    # dans le journal : sur une installation livrée, ce journal part dans un collecteur que
+    # personne ne lit à l'instant précis du premier démarrage, et le mot de passe s'y perd. Il
+    # reste annoncé dans le journal si l'envoi échoue.
+    #
+    # VIDE, ET SANS DÉFAUT : cette adresse reçoit le mot de passe du compte qui a la main sur la
+    # clé de signature. Une adresse écrite ici vaudrait pour toute installation clonant ce dépôt,
+    # et l'envoi partirait sans que personne ne l'ait choisi. Rien n'est donc ouvert dans le
+    # royaume tant qu'elle n'est pas posée — c'est un démarrage incomplet et bruyant, préférable
+    # à un mot de passe expédié à la mauvaise personne.
+    email: ${LICENCES_ADMIN_EMAIL:}
+
+    # Mode Keycloak seulement : ouvrir le premier compte DANS le royaume au démarrage, avec le
+    # rôle d'entrée et SUPER_ADMIN, puis lui envoyer ses accès.
+    #
+    # Rien n'est fait si un compte porte déjà le rôle d'entrée : un royaume en service ne se voit
+    # pas ajouter de compte que personne n'a demandé.
+    #
+    # À PESER : cela demande que le client porte un compte de service avec « manage-users » et
+    # « manage-realm ». Un client autorisé à créer des comptes dans le royaume peut s'en créer
+    # un — sur un royaume partagé, cette portée dépasse cet outil. « false » pour créer le
+    # premier compte à la main depuis la console.
+    provisionner: ${LICENCES_ADMIN_PROVISION:true}
+    keycloak:
+      # Vides, le client de connexion sert lui-même : c'est à lui qu'on active le compte de
+      # service. Un client distinct permet de ne pas mêler la connexion des utilisateurs et
+      # l'administration du royaume — deux droits qui n'ont pas la même portée.
+      client: ${KC_LICENCES_ADMIN_CLIENT:}
+      secret: ${KC_LICENCES_ADMIN_SECRET:}
+
+  # Adresse publique du back-office, pour que les courriels portent un lien cliquable. Au
+  # démarrage, aucune requête n'est encore arrivée : il n'y a rien d'où la déduire. Vide, le
+  # message reste juste, il n'y manque que le lien.
+  url: ${LICENCES_URL:}
 
   # Le back-office est servi par cette application : une seule origine, donc pas de CORS, pas de
   # relais à configurer, et une adresse de retour vers Keycloak qu'aucun intermédiaire n'a pu

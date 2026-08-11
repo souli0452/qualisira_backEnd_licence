@@ -7,6 +7,7 @@ import com.qualiapproche.licences.model.Utilisateur;
 import com.qualiapproche.licences.repository.PermissionRepository;
 import com.qualiapproche.licences.repository.RoleRepository;
 import com.qualiapproche.licences.repository.UtilisateurRepository;
+import com.qualiapproche.licences.service.EnvoiDuCompteService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -57,6 +58,7 @@ public class HabilitationsInitiales implements CommandLineRunner {
     private final RoleRepository roles;
     private final UtilisateurRepository utilisateurs;
     private final PasswordEncoder encodeur;
+    private final EnvoiDuCompteService envoiDuCompte;
 
     @Value("${licences.admin.utilisateur:admin}")
     private String identifiantAdmin;
@@ -237,6 +239,22 @@ public class HabilitationsInitiales implements CommandLineRunner {
         creee.prendreDate("démarrage");
         utilisateurs.save(creee);
 
+        // Envoyé de préférence à son destinataire : sur une installation livrée, le journal du
+        // premier démarrage part dans un collecteur que personne ne lit à cet instant précis, et
+        // le mot de passe s'y perd. Le journal reste le filet quand l'envoi échoue.
+        if (remisParCourriel(creee.getIdentifiant(), secret)) {
+            log.warn("""
+
+                    ════════════════════════════════════════════════════════════════════
+                      Super administrateur créé — il gère les comptes de tous les autres.
+                      Identifiant   : {}
+                      Mot de passe  : envoyé à {}, et volontairement absent de ce journal.
+                      À changer à la première connexion.
+                    ════════════════════════════════════════════════════════════════════
+                    """, creee.getIdentifiant(), emailAdmin);
+            return;
+        }
+
         log.warn("""
 
                 ════════════════════════════════════════════════════════════════════
@@ -251,7 +269,34 @@ public class HabilitationsInitiales implements CommandLineRunner {
                      : "Celui de LICENCES_ADMIN_MDP.");
     }
 
-    private String tirerUnMotDePasse() {
+    /**
+     * Tente la remise par courriel, et dit si elle a abouti.
+     *
+     * <p>Un échec n'interrompt pas le démarrage : il n'y a aucune raison qu'un serveur SMTP
+     * indisponible empêche de servir les licences déjà émises. L'appelant retombe alors sur
+     * l'annonce dans le journal, qui reste le moyen de dernier recours.</p>
+     */
+    private boolean remisParCourriel(String identifiant, String secret) {
+        if (emailAdmin == null || emailAdmin.isBlank()) {
+            return false;
+        }
+        try {
+            envoiDuCompte.envoyer(emailAdmin, identifiant, secret, false);
+            return true;
+        } catch (Exception e) {
+            log.warn("Accès du premier compte non envoyés à {} ({}) — le mot de passe est "
+                    + "annoncé ci-dessous, à relever maintenant.", emailAdmin, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Un mot de passe à usage unique, tiré au hasard.
+     *
+     * <p>Partagé avec {@link PremierCompteKeycloak} : le compte amorcé dans le royaume mérite le
+     * même alphabet et la même longueur que celui amorcé en base.</p>
+     */
+    static String tirerUnMotDePasse() {
         SecureRandom hasard = new SecureRandom();
         StringBuilder tire = new StringBuilder(16);
         for (int i = 0; i < 16; i++) {

@@ -42,7 +42,10 @@ le **super administrateur** — le compte par lequel tous les autres seront ouve
 | `LICENCES_DB_USER` / `LICENCES_DB_MDP` | `postgres` / `postgres` | accès à la base |
 | `LICENCES_AUTH` | `local` | `keycloak` en fonctionnement normal |
 | `LICENCES_ADMIN_UTILISATEUR` / `LICENCES_ADMIN_MDP` | `admin` / *(tiré au hasard)* | super administrateur créé au premier démarrage |
-| `LICENCES_ADMIN_NOM` / `LICENCES_ADMIN_EMAIL` | *(Super administrateur)* / — | son identité |
+| `LICENCES_ADMIN_NOM` / `LICENCES_ADMIN_EMAIL` | *(Super administrateur)* / — | son identité, et où partent ses accès |
+| `LICENCES_ADMIN_PROVISION` | `true` | mode Keycloak : ouvrir le premier compte dans le royaume |
+| `KC_LICENCES_ADMIN_CLIENT` / `KC_LICENCES_ADMIN_SECRET` | *(le client de connexion)* | client d'administration, s'il doit être distinct |
+| `LICENCES_URL` | — | adresse publique, pour le lien dans les courriels |
 | `LICENCES_ROLE` | `LICENCES_EDITEUR` | rôle Keycloak exigé pour entrer |
 | `KC_LICENCES_ISSUER` | `http://localhost:8080/realms/qualisira-licences` | royaume Keycloak dédié |
 | `KC_LICENCES_CLIENT` / `KC_LICENCES_SECRET` | `qualisira-licences` / *(secret de développement)* | client du royaume |
@@ -138,6 +141,32 @@ sans cela l'authentification réussit, l'utilisateur n'a aucun rôle, et tout le
 rôle d'entrée sans qu'aucun message n'en dise la raison.
 
 L'adresse de retour est déduite de l'en-tête `Host` reçu par ce service. Comme il sert lui-même le back-office, il n'y a qu'une origine et la question ne se pose pas. Si un répartiteur ou un terminateur TLS est placé devant, il doit **conserver cet en-tête** (`proxy_set_header Host $host;`) : le remplacer ferait réclamer une adresse interne, que le royaume refuserait.
+
+### Le premier compte
+
+La mise en route est un cercle : gérer les comptes exige un compte. C'est le premier démarrage qui
+le rompt, et il le rompt là où vivent les mots de passe — en base en mode local, **dans le royaume**
+en mode Keycloak.
+
+Le mot de passe part par **courriel** à `LICENCES_ADMIN_EMAIL` plutôt que de s'afficher. Le journal
+du premier démarrage, sur une installation livrée, part dans un collecteur que personne ne lit à
+cet instant précis, et le mot de passe s'y perd — sans autre issue que de réécrire une empreinte
+dans la base. Il reste annoncé dans le journal quand l'envoi échoue : réglez donc le SMTP **avant**
+le premier démarrage. Dans les deux cas ce mot de passe ne vaut que pour entrer une fois, son
+changement étant réclamé avant toute autre action.
+
+En mode Keycloak, l'application crée le compte dans le royaume, y crée les rôles `LICENCES_EDITEUR`
+et `SUPER_ADMIN` s'ils manquent, et les lui attribue. **Rien n'est fait si un compte porte déjà le
+rôle d'entrée** : un royaume en service ne se voit pas ajouter de compte que personne n'a demandé.
+Un échec — Keycloak injoignable, droits refusés — n'interrompt jamais le démarrage : il se signale
+dans le journal en disant quoi faire à la main, et les licences déjà émises restent servies.
+
+Cela demande d'activer le **compte de service** du client et de lui donner `manage-users` et
+`manage-realm`. Ce droit mérite d'être pesé : un client autorisé à créer des comptes dans le royaume
+peut s'en créer un, et sur un royaume partagé cette portée dépasse cet outil. `KC_LICENCES_ADMIN_CLIENT`
+permet de le confier à un client distinct de celui que rencontrent les utilisateurs, et
+`LICENCES_ADMIN_PROVISION=false` de ne pas l'accorder du tout — le premier compte se crée alors
+depuis la console.
 
 ## API
 

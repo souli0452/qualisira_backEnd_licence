@@ -1,6 +1,5 @@
 package com.qualiapproche.licences.service;
 
-import com.qualiapproche.licences.model.ClesDeReglage;
 import com.qualiapproche.licences.model.Licence;
 import com.qualiapproche.licences.model.ModuleQualiSira;
 import com.qualiapproche.licences.model.TypeLicence;
@@ -9,7 +8,6 @@ import com.qualiapproche.licences.web.ErreurMetier;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -18,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
@@ -46,23 +43,8 @@ public class EnvoiDeLicenceService {
     private final LicenceRepository licenceRepository;
     private final LicenceService licenceService;
 
-    @Value("${spring.mail.username:}")
-    private String adresseExpediteur;
-
-    @Value("${licences.envoi.expediteur:}")
-    private String expediteurDeclare;
-
-    /**
-     * Les coordonnées et le logo du pied de message.
-     *
-     * <p>Tenus en base et non en configuration : ce courriel est souvent le premier contact
-     * technique d'une installation, celui qui le reçoit doit savoir à qui écrire — et changer un
-     * numéro de téléphone ne doit pas demander de livrer une version.</p>
-     */
-    private final ParametreService reglages;
-
-    /** Identifiant de la pièce jointe, référencé par {@code cid:} dans le corps. */
-    private static final String LOGO_CID = "logoQualiSira";
+    /** L'expéditeur, le pied et le logo — communs à tous les courriels partant d'ici. */
+    private final CourrielQualiSira habillage;
 
     /**
      * Envoie la licence à son destinataire.
@@ -87,18 +69,14 @@ public class EnvoiDeLicenceService {
             MimeMessage message = expediteur.createMimeMessage();
             MimeMessageHelper aide = new MimeMessageHelper(message, true, "UTF-8");
 
-            if (expediteurDeclare != null && !expediteurDeclare.isBlank()) {
-                aide.setFrom(expediteurDeclare);
-            } else if (adresseExpediteur != null && !adresseExpediteur.isBlank()) {
-                aide.setFrom(adresseExpediteur);
-            }
+            habillage.appliquerExpediteur(aide);
             aide.setTo(adresse);
             aide.setSubject("Votre licence QualiSira — " + licence.getReference());
             aide.setText(corps(licence), true);
             aide.addAttachment(licence.getReference() + ".lic",
                     new ByteArrayResource(licence.getJeton().getBytes(StandardCharsets.UTF_8)),
                     "text/plain");
-            joindreLeLogo(aide);
+            habillage.joindreLeLogo(aide);
 
             expediteur.send(message);
         } catch (Exception e) {
@@ -183,102 +161,6 @@ public class EnvoiDeLicenceService {
                 utilisateurs,
                 licence.getReference(),
                 licence.getJeton(),
-                pied());
-    }
-
-    /**
-     * Le pied : la marque, et à qui s'adresser.
-     *
-     * <p>Une table plutôt que du {@code flex} : les clients de messagerie n'appliquent pas les
-     * dispositions modernes, et le logo se retrouverait au-dessus du texte dans la moitié d'entre
-     * eux. Les tables, elles, se comportent partout de la même façon.</p>
-     *
-     * <p>Le logo est référencé par {@code cid:} : l'image voyage dans le message. Une adresse
-     * distante serait bloquée par défaut par la plupart des clients, et le pied arriverait
-     * amputé.</p>
-     */
-    private String pied() {
-        String marque = reglages.valeur(ClesDeReglage.COURRIEL_MARQUE);
-        String email = reglages.valeur(ClesDeReglage.COURRIEL_CONTACT_EMAIL);
-        String telephone = reglages.valeur(ClesDeReglage.COURRIEL_CONTACT_TELEPHONE);
-        String site = reglages.valeur(ClesDeReglage.COURRIEL_SITE);
-
-        // Chaque ligne n'apparaît que si elle est renseignée : un pied qui annoncerait un
-        // téléphone vide vaudrait moins que pas de téléphone du tout.
-        StringBuilder contacts = new StringBuilder();
-        if (!email.isEmpty()) {
-            contacts.append("<a href=\"mailto:").append(email)
-                    .append("\" style=\"color:#1e3a5f;text-decoration:none\">")
-                    .append(email).append("</a>");
-        }
-        if (!telephone.isEmpty()) {
-            if (contacts.length() > 0) {
-                contacts.append("<br>");
-            }
-            contacts.append(telephone);
-        }
-        if (!site.isEmpty()) {
-            if (contacts.length() > 0) {
-                contacts.append("<br>");
-            }
-            contacts.append("<a href=\"").append(site)
-                    .append("\" style=\"color:#1e3a5f;text-decoration:none\">")
-                    .append(site.replaceFirst("^https?://", "")).append("</a>");
-        }
-
-        boolean logo = !reglages.valeur(ClesDeReglage.COURRIEL_LOGO).isEmpty();
-        String celluleLogo = logo
-                ? ("<td style=\"padding:16px 12px 0 0;vertical-align:top;width:68px\">"
-                   + "<img src=\"cid:" + LOGO_CID + "\" alt=\"" + (marque.isEmpty() ? "" : marque)
-                   + "\" width=\"56\" style=\"display:block;width:56px;height:auto;border:0\"></td>")
-                : "";
-        String entete = marque.isEmpty() ? ""
-                : "<div style=\"font-weight:600;color:#1e3a5f;font-size:13px\">" + marque + "</div>";
-        String invitation = contacts.length() > 0
-                ? "<div>Une question sur cette licence ? Écrivez-nous.</div>"
-                  + "<div style=\"margin-top:6px\">" + contacts + "</div>"
-                : "";
-
-        return """
-                <table style="border-collapse:collapse;width:100%%;margin-top:28px;
-                              border-top:1px solid #e2e8f0">
-                  <tr>
-                    %s
-                    <td style="padding:16px 0 0;vertical-align:top;font-size:12px;color:#64748b;
-                               line-height:1.6">%s%s</td>
-                  </tr>
-                </table>
-                <p style="color:#94a3b8;font-size:11px;margin-top:16px">
-                   Message automatique — merci de ne pas y répondre.</p>
-                """.formatted(celluleLogo, entete, invitation);
-    }
-
-    /**
-     * Joint le logo au message, en ressource intégrée.
-     *
-     * <p>Intégré et non lié : une image distante serait bloquée par défaut par la plupart des
-     * clients de messagerie, et le pied arriverait amputé chez la moitié des destinataires.</p>
-     *
-     * <p>Son absence n'empêche pas l'envoi : la licence est ce qui compte, et un courriel refusé
-     * pour un ornement manquant serait une régression pour le partenaire qui l'attend. Le pied
-     * reste alors lisible, il n'y manque que la marque.</p>
-     */
-    private void joindreLeLogo(MimeMessageHelper aide) {
-        String valeur = reglages.valeur(ClesDeReglage.COURRIEL_LOGO);
-        if (valeur.isEmpty()) {
-            return;
-        }
-        try {
-            // « data:image/png;base64,…​ » — le type déclaré est repris tel quel, le destinataire
-            // devant savoir s'il reçoit un PNG ou un JPEG.
-            int pointVirgule = valeur.indexOf(';');
-            int virgule = valeur.indexOf(',');
-            String type = pointVirgule > 5 ? valeur.substring(5, pointVirgule) : "image/png";
-            byte[] octets = Base64.getDecoder().decode(valeur.substring(virgule + 1));
-            aide.addInline(LOGO_CID, new ByteArrayResource(octets), type);
-        } catch (Exception e) {
-            log.warn("Logo non joint au courriel ({}) : le message part sans marque.",
-                    e.getMessage());
-        }
+                habillage.pied("Une question sur cette licence ? Écrivez-nous."));
     }
 }
