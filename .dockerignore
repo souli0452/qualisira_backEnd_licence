@@ -1,0 +1,28 @@
+# Ce que « COPY . . » ne doit PAS emporter dans l'image.
+#
+# Le Dockerfile recopie le dépôt entier avant de construire. Sans ce fichier, tout ce qui traîne
+# à côté part avec — et la première étape de la construction garde ses couches, même si l'image
+# finale n'en retient que le jar.
+
+# LE SECRET. Un « .env » posé pour lancer le service en local se retrouverait dans une couche de
+# l'image, lisible par quiconque la tire — bien après que le mot de passe de la base ait été
+# changé. C'est la ligne la plus importante de ce fichier.
+.env
+*.env
+!.env.example
+
+# LA CLÉ DE SIGNATURE. Engendrée au premier démarrage local, elle signe les licences : la mettre
+# dans une image, c'est permettre d'en émettre sans limite.
+data/
+*.properties.bak
+
+# Le jar et les classes sont reconstruits dans l'image : les emporter ne fait qu'alourdir le
+# contexte de construction (58 Mo), et risque de masquer une compilation qui aurait échoué.
+target/
+
+.git/
+.gitignore
+.idea/
+*.iml
+.claude/
+README.md
