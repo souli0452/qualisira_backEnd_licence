@@ -148,7 +148,11 @@ La mise en route est un cercle : gérer les comptes exige un compte. C'est le pr
 le rompt, et il le rompt là où vivent les mots de passe — en base en mode local, **dans le royaume**
 en mode Keycloak.
 
-Le mot de passe part par **courriel** à `LICENCES_ADMIN_EMAIL` plutôt que de s'afficher. Le journal
+Le mot de passe part par **courriel** à `LICENCES_ADMIN_EMAIL` plutôt que de s'afficher. Cette boîte
+doit exister : une adresse plausible mais non ouverte est acceptée par le serveur SMTP, puis refusée
+à la remise (`550 Mailbox does not exist`), et rien ne le dit au démarrage. `LICENCES_EXPEDITEUR`,
+lui, doit être une **adresse** et non un libellé — un simple nom fait échouer tous les envois avant
+même que le serveur soit contacté. Le journal
 du premier démarrage, sur une installation livrée, part dans un collecteur que personne ne lit à
 cet instant précis, et le mot de passe s'y perd — sans autre issue que de réécrire une empreinte
 dans la base. Il reste annoncé dans le journal quand l'envoi échoue : réglez donc le SMTP **avant**

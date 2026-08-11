@@ -206,7 +206,10 @@ licences:
 
 
   envoi:
-    # Expéditeur affiché, s'il diffère du compte SMTP — « QualiSira <licences@qualisira.com> ».
+    # Expéditeur affiché, s'il diffère du compte SMTP. C'est l'en-tête « From » : une ADRESSE, et
+    # non un libellé. « L'équipe QualiSira » seul est rejeté avant même que le serveur SMTP soit
+    # contacté, et plus aucun courriel ne part — ni les licences, ni les accès du premier compte.
+    # Seules « Nom <adresse> » et l'adresse nue conviennent.
     expediteur: ${LICENCES_EXPEDITEUR:noreply@qualisira.com}
 
   cors:
