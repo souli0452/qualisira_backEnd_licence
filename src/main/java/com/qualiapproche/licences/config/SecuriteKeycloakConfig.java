@@ -97,6 +97,21 @@ public class SecuriteKeycloakConfig {
                     } else {
                         requetes.requestMatchers("/api/**").hasAuthority("ROLE_" + roleRequis);
                     }
+                    // « health » reste ouvert : c'est la sonde de vie que lit l'orchestrateur,
+                    // avant qu'aucune session n'existe et sans compte du royaume à lui donner.
+                    // Elle ne rend qu'un « UP » — « show-details » n'est pas activé.
+                    requetes.requestMatchers("/actuator/health", "/actuator/health/**").permitAll();
+                    // Le reste demande une session. « info » annonce la clé publique de signature :
+                    // elle ne permet de fabriquer aucune licence — une clé publique vérifie, elle ne
+                    // signe pas — et elle voyage déjà dans la configuration de chaque installation
+                    // du produit. Mais elle dit quelle instance signe avec quoi, ce qui n'a pas à se
+                    // lire de l'extérieur sans compte.
+                    //
+                    // Le rôle d'entrée n'est pas exigé, seulement d'être connecté : relever la clé
+                    // publique pour la comparer à celle du produit est un geste d'exploitation, que
+                    // fait aussi qui installe sans émettre de licence. Le renvoi vers Keycloak
+                    // s'applique ici — le 401 nu ne vaut que pour « /api/** ».
+                    requetes.requestMatchers("/actuator/**").authenticated();
                     // Le back-office lui-même est servi sans session : ce sont des fichiers, sans
                     // donnée. Le fermer enverrait l'utilisateur vers Keycloak avant même que
                     // l'écran ait pu s'afficher, et son bouton de connexion ne servirait jamais.

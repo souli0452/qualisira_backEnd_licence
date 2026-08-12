@@ -37,6 +37,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!-- Pour /actuator/info, qui annonce la clé publique en service : c'est le seul moyen de
+             vérifier d'un coup d'œil que l'instance signe bien avec la clé que le produit
+             attend. Seuls « info » et « health » sont exposés — voir application.yml. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>

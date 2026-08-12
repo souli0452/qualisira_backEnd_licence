@@ -128,6 +128,19 @@ spring:
             # sur chaque licence.
             user-name-attribute: preferred_username
 
+management:
+  endpoints:
+    web:
+      exposure:
+        # « info » et « health », et rien d'autre. Nommer les points d'entrée un par un plutôt
+        # que d'ouvrir « * » : « env » et « configprops » rendraient la configuration entière,
+        # mot de passe de la base et secret du royaume compris, sur un service dont les deux
+        # chaînes de sécurité laissent passer tout ce qui n'est pas sous /api.
+        include: info,health
+  info:
+    env:
+      enabled: false
+
 licences:
   auth:
     # « keycloak » en fonctionnement normal ; « local » pour la mise au point ou un poste hors
@@ -200,9 +213,25 @@ licences:
     dossier: ${LICENCES_FRONT:}
 
   cles:
-    # Engendré au premier démarrage. À SAUVEGARDER et à ne jamais versionner : c'est la clé qui
-    # signe toutes les licences.
+    # À SAUVEGARDER et à ne jamais versionner : c'est la clé qui signe toutes les licences.
+    #
+    # EN CONTENEUR, CE CHEMIN DOIT POINTER UN VOLUME PERSISTANT. Sans volume, le fichier vit dans
+    # la couche éphémère : il disparaît au redéploiement, et le service ne redémarre plus (voir
+    # ci-dessous) — ce qui vaut infiniment mieux que l'inverse.
     fichier: ${LICENCES_CLES:./data/cles-editeur.properties}
+
+    # Engendrer une paire neuve quand le fichier est absent. FAUX par défaut, et c'est le cœur du
+    # garde-fou : le service refuse alors de démarrer plutôt que de se forger une clé.
+    #
+    # Automatique, cela se passe bien une fois, sur un poste. En production c'est l'inverse : un
+    # conteneur qui repart sans son volume trouve le fichier absent, engendre une clé, démarre
+    # normalement — et toutes les licences déjà remises deviennent invérifiables chez tous les
+    # clients. Rien ne le signale ici ; c'est chez le client que ça casse, des semaines plus tard.
+    #
+    # À n'activer que le temps du tout premier démarrage, volume déjà monté. On relève ensuite la
+    # clé publique sur /actuator/info, on la pose dans le produit (QUALISIRA_CLE_PUBLIQUE), on
+    # sauvegarde le fichier, et on remet ceci à false.
+    engendrer-si-absent: ${LICENCES_ENGENDRER_CLES:false}
 
 
   envoi:

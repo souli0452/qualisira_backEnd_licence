@@ -77,6 +77,18 @@ public class SecuriteConfig {
                         // connecte ici, avant de présenter un formulaire ou un bouton Keycloak.
                         .requestMatchers("/api/session/connexion", "/api/session/mode").permitAll()
                         .requestMatchers("/api/**").authenticated()
+                        // « health » reste ouvert : c'est la sonde de vie que lit l'orchestrateur,
+                        // avant qu'aucune session n'existe et sans compte à lui donner. Elle ne
+                        // rend qu'un « UP » — « show-details » n'est pas activé, donc ni base, ni
+                        // disque, ni version.
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        // Le reste des points d'entrée d'exploitation demande une session. « info »
+                        // annonce la clé publique de signature : elle ne permet de fabriquer aucune
+                        // licence — une clé publique vérifie, elle ne signe pas — et elle voyage
+                        // déjà dans la configuration de chaque installation du produit. Mais elle
+                        // dit aussi quelle instance signe avec quoi, ce qui n'a pas à se lire depuis
+                        // l'extérieur sans compte. Le relevé se fait donc connecté, comme le reste.
+                        .requestMatchers("/actuator/**").authenticated()
                         // Le back-office lui-même est servi sans session : c'est un ensemble de
                         // fichiers, sans donnée. Exiger une session pour le charger renverrait un
                         // 401 sur index.html, et l'écran de connexion ne s'afficherait jamais —
